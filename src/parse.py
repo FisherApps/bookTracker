@@ -102,7 +102,7 @@ def parse_product_page(html: str, asin: str) -> ParsedPage:
             category_id = None
             link = sub.find("a", href=True)
             if link:
-                idm = re.search(r"/bestsellers/books/(\d+)/", link["href"])
+                idm = re.search(r"/bestsellers/(?:books|digital-text)/(\d+)/", link["href"])
                 if idm:
                     category_id = idm.group(1)
             if category_id is None:
