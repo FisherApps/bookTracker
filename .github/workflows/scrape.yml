@@ -2,7 +2,7 @@ name: Daily BSR Scrape
 
 on:
   schedule:
-    - cron: '0 14 * * *'  # 10am ET / 7am PT daily
+    - cron: '0 8 * * *'  # 4am ET daily
   workflow_dispatch:  # allows manual trigger from GitHub UI
 
 jobs:
@@ -23,6 +23,7 @@ jobs:
 
       - name: Run scraper
         run: python -m src.scrape
+        timeout-minutes: 180
 
       - name: Generate dashboard
         run: python -m src.dashboard

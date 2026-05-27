@@ -155,7 +155,7 @@ def run_pass(
             failed.append(book)
         # Sleep between requests (not after the last one)
         if i < len(books) - 1:
-            delay = random.uniform(20, 40)
+            delay = random.uniform(45, 75)
             logging.info("Sleeping %.0f seconds...", delay)
             time.sleep(delay)
     return failed
