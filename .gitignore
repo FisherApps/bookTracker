@@ -5,3 +5,4 @@ logs/
 .DS_Store
 response.json
 poc_parser.py
+ASINs.xlsx

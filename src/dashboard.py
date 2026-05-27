@@ -191,6 +191,14 @@ def generate_html(data: dict, book_titles: dict[str, str]) -> str:
             best_rank_val = item["rank"]
             best_rank_book = display_names.get(item["asin"], item["asin"])
 
+    # Latest run info
+    latest_date = data["dates"][-1] if data["dates"] else ""
+    latest_date_fmt = ""
+    if latest_date:
+        from datetime import datetime as _dt
+        latest_date_fmt = _dt.strptime(latest_date, "%Y-%m-%d").strftime("%b %-d")
+    latest_fetched = len(data["latest_ranks"])
+
     # Top 5 ASINs by best rank for the overview chart
     top5 = [item["asin"] for item in data["latest_ranks"][:5]]
 
@@ -427,6 +435,19 @@ header .left .meta {{
     overflow: hidden;
 }}
 
+.book-list-header {{
+    display: grid;
+    grid-template-columns: 36px 1fr auto 28px;
+    gap: 14px;
+    padding: 10px 24px;
+    border-bottom: 2px solid var(--border);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}}
+
 .book-row {{
     display: grid;
     grid-template-columns: 36px 1fr auto 28px;
@@ -576,6 +597,103 @@ header .left .meta {{
     margin-top: 20px;
 }}
 
+/* President Filter */
+.president-filter {{
+    position: relative;
+}}
+
+.president-btn {{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    font-family: var(--font-body);
+    font-weight: 500;
+    color: var(--text);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: var(--shadow);
+}}
+
+.president-btn:hover {{
+    border-color: var(--accent);
+}}
+
+.president-btn svg {{
+    fill: none;
+    stroke: var(--text-muted);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform 0.2s;
+}}
+
+.president-btn.open svg {{
+    transform: rotate(180deg);
+}}
+
+.president-dropdown {{
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 260px;
+    max-height: 340px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 100;
+    overflow: hidden;
+}}
+
+.president-dropdown.open {{
+    display: block;
+}}
+
+.president-dropdown input {{
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    font-family: var(--font-body);
+    border: none;
+    border-bottom: 1px solid var(--border-light);
+    background: transparent;
+    color: var(--text);
+    outline: none;
+    box-sizing: border-box;
+}}
+
+.president-dropdown input::placeholder {{
+    color: var(--text-muted);
+}}
+
+.president-list {{
+    max-height: 270px;
+    overflow-y: auto;
+}}
+
+.president-option {{
+    padding: 9px 14px;
+    font-size: 0.85rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s;
+}}
+
+.president-option:hover {{
+    background: var(--bg-hover);
+}}
+
+.president-option.active {{
+    color: var(--accent);
+    font-weight: 600;
+}}
+
 /* Search */
 .search-box {{
     margin-bottom: 16px;
@@ -635,6 +753,38 @@ header .left .meta {{
     letter-spacing: 0.05em;
 }}
 
+/* Export */
+.export-btn {{
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-family: var(--font-body);
+    font-weight: 500;
+    color: var(--text);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: var(--shadow);
+    white-space: nowrap;
+}}
+
+.export-btn:hover {{
+    border-color: var(--accent);
+    color: var(--accent);
+}}
+
+.export-btn svg {{
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}}
+
 /* Responsive */
 @media (max-width: 768px) {{
     .container {{ padding: 24px 16px; }}
@@ -655,7 +805,7 @@ header .left .meta {{
         <h1>Presidential Chronicles</h1>
         <div class="meta">Sales Rank Tracker &middot; Updated {generated_at}</div>
     </div>
-    <div style="display:flex;align-items:center;">
+    <div style="display:flex;align-items:center;gap:12px;">
         <div class="time-range" id="timeRange">
             <button class="time-btn" data-days="7">7d</button>
             <button class="time-btn" data-days="30">30d</button>
@@ -668,6 +818,10 @@ header .left .meta {{
             <label>To</label>
             <input type="date" id="dateTo">
         </div>
+        <button class="export-btn" id="exportBtn">
+            <svg viewBox="0 0 24 24" width="14" height="14"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Export CSV
+        </button>
     </div>
 </header>
 
@@ -683,9 +837,9 @@ header .left .meta {{
         <div class="detail">{best_rank_book}</div>
     </div>
     <div class="stat">
-        <div class="label">Collection Status</div>
-        <div class="value">{len(data["latest_ranks"])}/{num_books}</div>
-        <div class="detail">Books with rank data today</div>
+        <div class="label">Latest Run</div>
+        <div class="value">{latest_date_fmt or "—"}</div>
+        <div class="detail">{latest_fetched}/{num_books} books fetched</div>
     </div>
 </div>
 
@@ -706,13 +860,31 @@ header .left .meta {{
         <button class="tab" data-filter="hardcover">Hardcover</button>
         <button class="tab" data-filter="paperback">Paperback</button>
     </div>
+    <div class="president-filter">
+        <button class="president-btn" id="presidentBtn">
+            <span id="presidentLabel">All Presidents</span>
+            <svg viewBox="0 0 24 24" width="14" height="14"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </button>
+        <div class="president-dropdown" id="presidentDropdown">
+            <input type="text" id="presidentSearch" placeholder="Search presidents...">
+            <div class="president-list" id="presidentList"></div>
+        </div>
+    </div>
 </div>
 
 <div class="search-box">
     <input type="text" id="searchInput" placeholder="Search books by title...">
 </div>
 
-<div class="book-list" id="bookList"></div>
+<div class="book-list">
+    <div class="book-list-header">
+        <div>#</div>
+        <div>Title</div>
+        <div id="rankHeader">Overall Rank</div>
+        <div></div>
+    </div>
+    <div id="bookList"></div>
+</div>
 
 </div>
 
@@ -820,12 +992,12 @@ function renderOverviewChart() {{
         options: {{
             responsive: true,
             maintainAspectRatio: false,
-            interaction: {{ mode: 'index', intersect: false }},
+            interaction: {{ mode: 'nearest', intersect: true }},
             scales: {{
                 x: {{
                     type: 'category',
                     labels: dates,
-                    ticks: {{ color: PALETTE.text, font: {{ size: 11 }}, maxRotation: 0 }},
+                    ticks: {{ color: PALETTE.text, font: {{ size: 11 }}, maxRotation: 0, maxTicksLimit: 12 }},
                     grid: {{ color: PALETTE.grid }},
                 }},
                 y: {{
@@ -872,6 +1044,76 @@ document.getElementById('searchInput').addEventListener('input', (e) => {{
     renderBookList();
 }});
 
+// --- President filter ---
+const PRESIDENTS = [
+    'George Washington', 'John Adams', 'Thomas Jefferson', 'James Madison', 'James Monroe',
+    'John Quincy Adams', 'Andrew Jackson', 'Martin Van Buren', 'William Henry Harrison', 'John Tyler',
+    'James Polk', 'Zachary Taylor', 'Millard Fillmore', 'Franklin Pierce', 'James Buchanan',
+    'Abraham Lincoln', 'Andrew Johnson', 'Ulysses Grant', 'Rutherford Hayes', 'James Garfield',
+    'Chester Arthur', 'Grover Cleveland', 'Benjamin Harrison', 'William McKinley', 'Theodore Roosevelt',
+    'William Taft', 'Woodrow Wilson', 'Warren Harding', 'Calvin Coolidge',
+    'Herbert Hoover', 'Franklin Roosevelt', 'Harry Truman', 'Dwight Eisenhower',
+    'John Kennedy', 'Lyndon Johnson', 'Richard Nixon', 'Gerald Ford',
+];
+
+let selectedPresident = '';
+const presBtn = document.getElementById('presidentBtn');
+const presDropdown = document.getElementById('presidentDropdown');
+const presList = document.getElementById('presidentList');
+const presSearch = document.getElementById('presidentSearch');
+const presLabel = document.getElementById('presidentLabel');
+
+function renderPresidentList(filter) {{
+    presList.innerHTML = '';
+    const allOpt = document.createElement('div');
+    allOpt.className = 'president-option' + (!selectedPresident ? ' active' : '');
+    allOpt.textContent = 'All Presidents';
+    allOpt.addEventListener('click', () => selectPresident(''));
+    presList.appendChild(allOpt);
+
+    PRESIDENTS.forEach(name => {{
+        if (filter && !name.toLowerCase().includes(filter)) return;
+        const opt = document.createElement('div');
+        opt.className = 'president-option' + (selectedPresident === name ? ' active' : '');
+        opt.textContent = name;
+        opt.addEventListener('click', () => selectPresident(name));
+        presList.appendChild(opt);
+    }});
+}}
+
+function selectPresident(name) {{
+    selectedPresident = name;
+    presLabel.textContent = name || 'All Presidents';
+    presDropdown.classList.remove('open');
+    presBtn.classList.remove('open');
+    presSearch.value = '';
+    selectedAsin = null;
+    renderBookList();
+}}
+
+presBtn.addEventListener('click', (e) => {{
+    e.stopPropagation();
+    const isOpen = presDropdown.classList.toggle('open');
+    presBtn.classList.toggle('open');
+    if (isOpen) {{
+        renderPresidentList('');
+        setTimeout(() => presSearch.focus(), 10);
+    }}
+}});
+
+presSearch.addEventListener('input', (e) => {{
+    renderPresidentList(e.target.value.toLowerCase());
+}});
+
+presSearch.addEventListener('click', (e) => e.stopPropagation());
+
+document.addEventListener('click', () => {{
+    presDropdown.classList.remove('open');
+    presBtn.classList.remove('open');
+}});
+
+presDropdown.addEventListener('click', (e) => e.stopPropagation());
+
 // --- Custom date range ---
 document.getElementById('dateFrom').addEventListener('change', applyCustomDateRange);
 document.getElementById('dateTo').addEventListener('change', applyCustomDateRange);
@@ -898,6 +1140,7 @@ function renderBookList() {{
         const fmt = getFormat(book.name);
         if (currentFilter !== 'all' && fmt !== currentFilter) return;
         if (searchQuery && !getCleanTitle(book.name).toLowerCase().includes(searchQuery)) return;
+        if (selectedPresident && !book.name.toLowerCase().includes(selectedPresident.toLowerCase())) return;
 
         position++;
         const rank = book.overall[latestDate];
@@ -1009,12 +1252,12 @@ function renderDetailCharts(asin) {{
             options: {{
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {{ mode: 'nearest', intersect: false }},
+                interaction: {{ mode: 'nearest', intersect: true }},
                 scales: {{
                     x: {{
                         type: 'category',
                         labels: dates,
-                        ticks: {{ color: PALETTE.text, font: {{ size: 11 }}, maxRotation: 0 }},
+                        ticks: {{ color: PALETTE.text, font: {{ size: 11 }}, maxRotation: 0, maxTicksLimit: 12 }},
                         grid: {{ color: PALETTE.grid }},
                     }},
                     y: {{
@@ -1075,12 +1318,12 @@ function renderDetailCharts(asin) {{
             options: {{
                 responsive: true,
                 maintainAspectRatio: false,
-                interaction: {{ mode: 'nearest', intersect: false }},
+                interaction: {{ mode: 'nearest', intersect: true }},
                 scales: {{
                     x: {{
                         type: 'category',
                         labels: dates,
-                        ticks: {{ color: PALETTE.text, font: {{ size: 11 }}, maxRotation: 0 }},
+                        ticks: {{ color: PALETTE.text, font: {{ size: 11 }}, maxRotation: 0, maxTicksLimit: 12 }},
                         grid: {{ color: PALETTE.grid }},
                     }},
                     y: {{
@@ -1142,7 +1385,65 @@ document.querySelectorAll('.tab').forEach(tab => {{
     }});
 }});
 
+// --- CSV Export ---
+document.getElementById('exportBtn').addEventListener('click', () => {{
+    const dates = getFilteredDates();
+
+    // Collect all category names across all books
+    const allCats = new Set();
+    asins.forEach(asin => {{
+        Object.values(DATA.books[asin].subcategories).forEach(cat => allCats.add(cat.name));
+    }});
+    const catNames = [...allCats].sort();
+
+    // Header: Date, Title, Format, Overall Rank, then one column per category
+    const header = ['Date', 'Title', 'Format', 'Overall Rank', ...catNames];
+    const rows = [header];
+
+    asins.forEach(asin => {{
+        const book = DATA.books[asin];
+        const title = getCleanTitle(book.name);
+        const fmt = getFormat(book.name);
+        const fmtLabel = fmt === 'all' ? '' : fmt.charAt(0).toUpperCase() + fmt.slice(1);
+
+        // Build a lookup: catName -> {{ date -> rank }}
+        const catLookup = {{}};
+        Object.values(book.subcategories).forEach(cat => {{
+            catLookup[cat.name] = cat.data;
+        }});
+
+        dates.forEach(date => {{
+            const overall = book.overall[date];
+            // Only include dates where we have data for this book
+            const hasCatData = catNames.some(cn => catLookup[cn] && catLookup[cn][date] !== undefined);
+            if (overall === undefined && !hasCatData) return;
+
+            const row = [date, title, fmtLabel, overall !== undefined ? overall : ''];
+            catNames.forEach(cn => {{
+                const val = catLookup[cn] && catLookup[cn][date];
+                row.push(val !== undefined ? val : '');
+            }});
+            rows.push(row);
+        }});
+    }});
+
+    const csv = rows.map(r => r.map(v => {{
+        const s = String(v);
+        return s.includes(',') || s.includes('"') ? '"' + s.replace(/"/g, '""') + '"' : s;
+    }}).join(',')).join('\\n');
+
+    const blob = new Blob([csv], {{ type: 'text/csv' }});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bsr-data-' + new Date().toISOString().split('T')[0] + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+}});
+
 // --- Initial render ---
+const latestFormatted = new Date(latestDate + 'T00:00:00').toLocaleDateString('en-US', {{ month: 'short', day: 'numeric' }});
+document.getElementById('rankHeader').textContent = 'Overall Rank (' + latestFormatted + ')';
 renderOverviewChart();
 renderBookList();
 </script>
