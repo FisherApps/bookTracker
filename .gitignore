@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+logs/
+.DS_Store
+response.json
+poc_parser.py
