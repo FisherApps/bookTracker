@@ -8,6 +8,7 @@ import argparse
 import json
 import logging
 import random
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,6 +23,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 BOOKS_FILE = PROJECT_ROOT / "books.json"
 DISCOVERED_TITLES_FILE = PROJECT_ROOT / "discovered_titles.txt"
 LOGS_DIR = PROJECT_ROOT / "logs"
+
+CAPTCHA_CIRCUIT_BREAKER = 15
+
+
+class CaptchaCircuitBreakerError(RuntimeError):
+    """Raised when too many consecutive captcha failures suggest the runner IP is blocked."""
 
 
 def setup_logging() -> None:
@@ -73,8 +80,12 @@ def process_book(
     now: datetime,
     dry_run: bool,
     discovered: set[str],
-) -> bool:
-    """Fetch, parse, and store data for one book. Returns True on success."""
+) -> tuple[bool, str]:
+    """Fetch, parse, and store data for one book.
+
+    Returns (success, status) where status is the FetchResult status on failure
+    (e.g. "captcha", "timeout") or "ok"/"parse_error" otherwise.
+    """
     asin = book["asin"]
     result: FetchResult = fetch_product_html(asin, session)
 
@@ -89,7 +100,7 @@ def process_book(
                 http_status=result.http_status,
                 detail=result.reason_detail,
             )
-        return False
+        return False, result.status
 
     # Parse
     try:
@@ -104,7 +115,7 @@ def process_book(
                 reason="parse_error",
                 detail=str(e),
             )
-        return False
+        return False, "parse_error"
 
     # Insert snapshots
     capture_date = now.strftime("%Y-%m-%d")
@@ -136,7 +147,7 @@ def process_book(
             discovered_title += f"\t{parsed.book_format}"
         append_discovered_title(asin, discovered_title, discovered)
 
-    return True
+    return True, "ok"
 
 
 def run_pass(
@@ -145,14 +156,29 @@ def run_pass(
     conn,
     dry_run: bool,
     discovered: set[str],
+    captcha_breaker: int = CAPTCHA_CIRCUIT_BREAKER,
 ) -> list[dict]:
-    """Run one pass over books. Returns list of books that failed."""
+    """Run one pass over books. Returns list of books that failed.
+
+    Raises CaptchaCircuitBreakerError if `captcha_breaker` consecutive captcha
+    failures occur — this indicates the runner IP is being blocked by Amazon and
+    further attempts in this run are pointless.
+    """
     failed = []
+    consecutive_captchas = 0
     for i, book in enumerate(books):
         now = datetime.now(timezone.utc)
-        success = process_book(book, session, conn, now, dry_run, discovered)
+        success, status = process_book(book, session, conn, now, dry_run, discovered)
         if not success:
             failed.append(book)
+        if status == "captcha":
+            consecutive_captchas += 1
+            if consecutive_captchas >= captcha_breaker:
+                raise CaptchaCircuitBreakerError(
+                    f"{consecutive_captchas} consecutive captcha responses — runner IP likely blocked"
+                )
+        else:
+            consecutive_captchas = 0
         # Sleep between requests (not after the last one)
         if i < len(books) - 1:
             delay = random.uniform(45, 75)
@@ -186,24 +212,36 @@ def main() -> None:
     session = requests.Session()
     discovered = load_discovered_asins()
 
-    # First pass
-    failed = run_pass(books, session, conn, args.dry_run, discovered)
+    tripped = False
+    try:
+        # First pass
+        failed = run_pass(books, session, conn, args.dry_run, discovered)
 
-    # Retry pass
-    if failed and not args.no_retry and not args.dry_run:
-        logging.info("Retry pass: %d books failed, waiting 15 minutes...", len(failed))
-        time.sleep(15 * 60)
-        random.shuffle(failed)
-        failed = run_pass(failed, session, conn, args.dry_run, discovered)
+        # Retry pass
+        if failed and not args.no_retry and not args.dry_run:
+            logging.info("Retry pass: %d books failed, waiting 15 minutes...", len(failed))
+            time.sleep(15 * 60)
+            random.shuffle(failed)
+            failed = run_pass(failed, session, conn, args.dry_run, discovered)
+    except CaptchaCircuitBreakerError as e:
+        logging.error("CIRCUIT BREAKER TRIPPED — %s. Aborting run.", e)
+        tripped = True
+        failed = []  # unknown remainder; don't pretend they "failed" individually
 
     # Summary
-    succeeded = len(books) - len(failed)
-    summary = f"{len(books)} books, {succeeded} succeeded, {len(failed)} failed"
+    if tripped:
+        summary = "captcha circuit breaker tripped — run aborted early"
+    else:
+        succeeded = len(books) - len(failed)
+        summary = f"{len(books)} books, {succeeded} succeeded, {len(failed)} failed"
     logging.info("=== Run complete: %s ===", summary)
     print(summary)
 
     if conn:
         conn.close()
+
+    if tripped:
+        sys.exit(2)
 
 
 if __name__ == "__main__":
