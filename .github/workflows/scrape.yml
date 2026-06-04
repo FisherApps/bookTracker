@@ -25,6 +25,9 @@ jobs:
       - name: Run scraper
         run: python -m src.scrape
         timeout-minutes: 180
+        env:
+          AMAZON_PROXY_URL: ${{ secrets.AMAZON_PROXY_URL }}
+          AMAZON_PROXY_TOKEN: ${{ secrets.AMAZON_PROXY_TOKEN }}
       - name: Generate dashboard
         run: python -m src.dashboard
       - name: Commit updated data
@@ -52,6 +55,9 @@ jobs:
       - name: Run scraper (retry 1)
         run: python -m src.scrape
         timeout-minutes: 180
+        env:
+          AMAZON_PROXY_URL: ${{ secrets.AMAZON_PROXY_URL }}
+          AMAZON_PROXY_TOKEN: ${{ secrets.AMAZON_PROXY_TOKEN }}
       - name: Generate dashboard
         run: python -m src.dashboard
       - name: Commit updated data
@@ -79,6 +85,9 @@ jobs:
       - name: Run scraper (retry 2)
         run: python -m src.scrape
         timeout-minutes: 180
+        env:
+          AMAZON_PROXY_URL: ${{ secrets.AMAZON_PROXY_URL }}
+          AMAZON_PROXY_TOKEN: ${{ secrets.AMAZON_PROXY_TOKEN }}
       - name: Generate dashboard
         run: python -m src.dashboard
       - name: Commit updated data
@@ -106,6 +115,9 @@ jobs:
       - name: Run scraper (retry 3)
         run: python -m src.scrape
         timeout-minutes: 180
+        env:
+          AMAZON_PROXY_URL: ${{ secrets.AMAZON_PROXY_URL }}
+          AMAZON_PROXY_TOKEN: ${{ secrets.AMAZON_PROXY_TOKEN }}
       - name: Generate dashboard
         run: python -m src.dashboard
       - name: Commit updated data

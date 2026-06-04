@@ -1,9 +1,15 @@
 """HTTP fetching for Amazon product pages with CAPTCHA detection."""
 
+import os
 from dataclasses import dataclass
 from typing import Literal
 
 import requests
+
+# Optional Cloudflare Worker proxy. When set, requests go through the Worker
+# (running on CF edge IPs) instead of direct to Amazon. Set both vars to use it.
+_PROXY_URL = os.environ.get("AMAZON_PROXY_URL", "").rstrip("/")
+_PROXY_TOKEN = os.environ.get("AMAZON_PROXY_TOKEN", "")
 
 _CAPTCHA_STRINGS = [
     "Type the characters you see in this image",
@@ -38,10 +44,15 @@ class FetchResult:
 
 def fetch_product_html(asin: str, session: requests.Session) -> FetchResult:
     """Fetch a product page from Amazon. Does not retry internally."""
-    url = f"https://www.amazon.com/dp/{asin}"
+    if _PROXY_URL and _PROXY_TOKEN:
+        url = f"{_PROXY_URL}/dp/{asin}"
+        headers = {**_HEADERS, "Authorization": f"Bearer {_PROXY_TOKEN}"}
+    else:
+        url = f"https://www.amazon.com/dp/{asin}"
+        headers = _HEADERS
 
     try:
-        response = session.get(url, headers=_HEADERS, timeout=20)
+        response = session.get(url, headers=headers, timeout=20)
     except (requests.ConnectionError, requests.Timeout, requests.RequestException) as e:
         return FetchResult(
             asin=asin,
