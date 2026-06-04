@@ -5,68 +5,114 @@ on:
     - cron: '0 14 * * *'  # 10am ET daily — shifted later to reduce captcha rate
   workflow_dispatch:  # allows manual trigger from GitHub UI
 
+# Each job below runs on its own fresh ubuntu-latest VM (= new IP from Azure's
+# pool). If Amazon captcha-blocks the IP, the circuit breaker in src/scrape.py
+# trips after ~15 min and the job exits non-zero, triggering the next retry.
+# With 4 attempts, the chance of all 4 IPs being blocked is very low.
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
       - name: Install dependencies
         run: pip install -r requirements.txt
-
       - name: Run scraper
         run: python -m src.scrape
         timeout-minutes: 180
-
       - name: Generate dashboard
         run: python -m src.dashboard
-
-      - name: Commit updated data
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add bsr.db dashboard.html discovered_titles.txt
-          git diff --cached --quiet || git commit -m "Daily BSR update $(date -u +%Y-%m-%d)"
-          git push
-
-  # Auto-retry on a fresh runner (new VM = new IP) if the scrape job fails.
-  # This addresses Amazon captcha-blocking specific Azure runner IPs.
-  retry:
-    needs: scrape
-    if: failure()
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run scraper (retry)
-        run: python -m src.scrape
-        timeout-minutes: 180
-
-      - name: Generate dashboard
-        run: python -m src.dashboard
-
       - name: Commit updated data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git pull --rebase
           git add bsr.db dashboard.html discovered_titles.txt
-          git diff --cached --quiet || git commit -m "Daily BSR update $(date -u +%Y-%m-%d) (retry)"
+          git diff --cached --quiet || git commit -m "Daily BSR update $(date -u +%Y-%m-%d)"
+          git push
+
+  retry1:
+    needs: scrape
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run scraper (retry 1)
+        run: python -m src.scrape
+        timeout-minutes: 180
+      - name: Generate dashboard
+        run: python -m src.dashboard
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase
+          git add bsr.db dashboard.html discovered_titles.txt
+          git diff --cached --quiet || git commit -m "Daily BSR update $(date -u +%Y-%m-%d) (retry 1)"
+          git push
+
+  retry2:
+    needs: retry1
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run scraper (retry 2)
+        run: python -m src.scrape
+        timeout-minutes: 180
+      - name: Generate dashboard
+        run: python -m src.dashboard
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase
+          git add bsr.db dashboard.html discovered_titles.txt
+          git diff --cached --quiet || git commit -m "Daily BSR update $(date -u +%Y-%m-%d) (retry 2)"
+          git push
+
+  retry3:
+    needs: retry2
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run scraper (retry 3)
+        run: python -m src.scrape
+        timeout-minutes: 180
+      - name: Generate dashboard
+        run: python -m src.dashboard
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase
+          git add bsr.db dashboard.html discovered_titles.txt
+          git diff --cached --quiet || git commit -m "Daily BSR update $(date -u +%Y-%m-%d) (retry 3)"
           git push
