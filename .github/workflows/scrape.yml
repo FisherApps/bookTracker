@@ -34,9 +34,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase
           git add bsr.db dashboard.html discovered_titles.txt
-          git diff --cached --quiet || git commit -m "Daily BSR update $(date -u +%Y-%m-%d)"
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "Daily BSR update $(date -u +%Y-%m-%d)"
+          git pull --rebase
           git push
 
   retry1:
@@ -64,9 +65,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase
           git add bsr.db dashboard.html discovered_titles.txt
-          git diff --cached --quiet || git commit -m "Daily BSR update $(date -u +%Y-%m-%d) (retry 1)"
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "Daily BSR update $(date -u +%Y-%m-%d) (retry 1)"
+          git pull --rebase
           git push
 
   retry2:
@@ -94,9 +96,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase
           git add bsr.db dashboard.html discovered_titles.txt
-          git diff --cached --quiet || git commit -m "Daily BSR update $(date -u +%Y-%m-%d) (retry 2)"
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "Daily BSR update $(date -u +%Y-%m-%d) (retry 2)"
+          git pull --rebase
           git push
 
   retry3:
@@ -124,7 +127,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase
           git add bsr.db dashboard.html discovered_titles.txt
-          git diff --cached --quiet || git commit -m "Daily BSR update $(date -u +%Y-%m-%d) (retry 3)"
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "Daily BSR update $(date -u +%Y-%m-%d) (retry 3)"
+          git pull --rebase
           git push
