@@ -53,12 +53,12 @@ jobs:
           python-version: '3.12'
       - name: Install dependencies
         run: pip install -r requirements.txt
+      # Retries run direct (no proxy env) so each lands on a fresh Azure IP.
+      # This restores IP diversity: when the CF Worker egress pool is captcha-
+      # blocked (as on 2026-06-11), the retries draw from independent IPs.
       - name: Run scraper (retry 1)
         run: python -m src.scrape
         timeout-minutes: 180
-        env:
-          AMAZON_PROXY_URL: ${{ secrets.AMAZON_PROXY_URL }}
-          AMAZON_PROXY_TOKEN: ${{ secrets.AMAZON_PROXY_TOKEN }}
       - name: Generate dashboard
         run: python -m src.dashboard
       - name: Commit updated data
@@ -84,12 +84,10 @@ jobs:
           python-version: '3.12'
       - name: Install dependencies
         run: pip install -r requirements.txt
+      # Retry runs direct (no proxy env) for a fresh Azure IP — see retry 1.
       - name: Run scraper (retry 2)
         run: python -m src.scrape
         timeout-minutes: 180
-        env:
-          AMAZON_PROXY_URL: ${{ secrets.AMAZON_PROXY_URL }}
-          AMAZON_PROXY_TOKEN: ${{ secrets.AMAZON_PROXY_TOKEN }}
       - name: Generate dashboard
         run: python -m src.dashboard
       - name: Commit updated data
@@ -115,12 +113,10 @@ jobs:
           python-version: '3.12'
       - name: Install dependencies
         run: pip install -r requirements.txt
+      # Retry runs direct (no proxy env) for a fresh Azure IP — see retry 1.
       - name: Run scraper (retry 3)
         run: python -m src.scrape
         timeout-minutes: 180
-        env:
-          AMAZON_PROXY_URL: ${{ secrets.AMAZON_PROXY_URL }}
-          AMAZON_PROXY_TOKEN: ${{ secrets.AMAZON_PROXY_TOKEN }}
       - name: Generate dashboard
         run: python -m src.dashboard
       - name: Commit updated data
