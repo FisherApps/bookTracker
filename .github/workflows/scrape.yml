@@ -5,13 +5,50 @@ on:
     - cron: '0 14 * * *'  # 10am ET daily — shifted later to reduce captcha rate
   workflow_dispatch:  # allows manual trigger from GitHub UI
 
-# Each job below runs on its own fresh ubuntu-latest VM (= new IP from Azure's
+# The cloud is now the BACKUP scraper. The primary is a local job on the Mac
+# mini that runs ~3am ET and pushes the day's data. So this workflow first
+# checks whether today's data is already in the repo; if it is, every job below
+# is skipped and the cloud does nothing. Only on days the Mac failed (no data
+# yet) does the cloud run its captcha-fighting scrape + retries as a safety net.
+#
+# Each scrape job runs on its own fresh ubuntu-latest VM (= new IP from Azure's
 # pool). If Amazon captcha-blocks the IP, the circuit breaker in src/scrape.py
 # trips after ~15 min and the job exits non-zero, triggering the next retry.
-# With 4 attempts, the chance of all 4 IPs being blocked is very low.
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      has_data: ${{ steps.check.outputs.has_data }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check whether today's data already exists
+        id: check
+        run: |
+          python - <<'PY'
+          import datetime, os, sqlite3
+          today = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+          n = 0
+          try:
+              conn = sqlite3.connect("bsr.db")
+              n = conn.execute(
+                  "SELECT COUNT(DISTINCT asin) FROM snapshots WHERE capture_date = ?",
+                  (today,),
+              ).fetchone()[0]
+          except Exception as e:
+              print("check error (treating as no data):", e)
+          has = "true" if n > 0 else "false"
+          print(f"{today}: {n} ASINs already have data -> has_data={has}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"has_data={has}\n")
+          PY
+
   scrape:
+    needs: check
+    if: needs.check.outputs.has_data == 'false'
     runs-on: ubuntu-latest
     permissions:
       contents: write
