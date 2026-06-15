@@ -30,18 +30,15 @@ It will:
 
 - install everything (no manual Python install — `uv` handles it),
 - ask you to **paste the token** (hidden input),
-- ask for the Mac's **login password** once (to schedule the 2:55am wake),
+- ask for an **admin password once** (to install the system job + 2:55am wake),
 - install the 3am job, add an **"Update Books"** shortcut to the Desktop, and run
   a quick test.
 
 That's it. ~2 minutes, then you can leave.
 
-### 3. One setting to check before you go
-
-System Settings → **Energy** (or Battery → Options): make sure the Mac is set to
-**wake for network access** / not to fully prevent scheduled wake, and that it
-**stays logged in** (auto-login on). The 3am job runs in the logged-in user
-session, so the Mac should stay logged in (it can sleep — it'll wake itself).
+The job is installed **system-wide**, so it runs at 3am no matter which account
+(Dad's or Mom's) is logged in — or if nobody is. Run setup once, from whichever
+account you like.
 
 ## Daily use (for Dad)
 
@@ -53,17 +50,17 @@ session, so the Mac should stay logged in (it can sleep — it'll wake itself).
 
 ## Troubleshooting (for you)
 
-- **Logs:** `~/Library/Logs/booktracker.log`
+- **Logs:** `~/Library/Logs/booktracker.log` (under the account setup ran from)
 - **Re-run setup safely:** paste the same command again; it won't duplicate anything.
-- **Check the job is installed:** `launchctl list | grep booktracker`
+- **Check the job is installed:** `sudo launchctl list | grep booktracker`
 - **Run it by hand from Terminal:** `bash ~/BookTracker/local/scrape_local.sh`
 - **Check the wake schedule:** `pmset -g sched`
 
 ## Uninstall
 
 ```sh
-launchctl bootout "gui/$(id -u)/com.fisherapps.booktracker"
-rm ~/Library/LaunchAgents/com.fisherapps.booktracker.plist
+sudo launchctl bootout "system/com.fisherapps.booktracker"
+sudo rm /Library/LaunchDaemons/com.fisherapps.booktracker.plist
 sudo pmset repeat cancel
 rm -rf ~/BookTracker "$HOME/Desktop/Update Books.command"
 ```

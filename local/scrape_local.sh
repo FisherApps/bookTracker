@@ -13,7 +13,9 @@
 # scrape and push whatever we get.
 set -uo pipefail
 
-REPO="$HOME/BookTracker"
+# Locate the repo from this script's own path, so it works no matter which
+# user (or the system daemon) runs it, regardless of $HOME.
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PY="$REPO/.venv/bin/python"
 
 cd "$REPO" || { echo "ERROR: $REPO not found — run setup.sh first."; exit 1; }

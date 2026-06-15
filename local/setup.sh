@@ -18,7 +18,8 @@ set -euo pipefail
 REPO_URL="https://github.com/FisherApps/bookTracker.git"
 INSTALL_DIR="$HOME/BookTracker"
 LABEL="com.fisherapps.booktracker"
-PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+PLIST="/Library/LaunchDaemons/$LABEL.plist"   # system-level: runs for any account
+RUN_USER="$(id -un)"
 LOG="$HOME/Library/Logs/booktracker.log"
 RUN_HOUR=3
 RUN_MIN=0
@@ -78,16 +79,24 @@ else
   fi
 fi
 
-# --- 4. launch agent (3am daily) ---------------------------------------
-echo "[4/7] Installing the 3am launch agent..."
-mkdir -p "$HOME/Library/LaunchAgents" "$(dirname "$LOG")"
-cat > "$PLIST" <<PLIST_EOF
+# --- 4 & 5 need admin rights; ask for the password once, up front. -----
+echo ""
+echo "The next two steps need an admin password ONCE (so the job runs for any"
+echo "account, even when nobody is logged in). You won't be asked again."
+sudo -v
+
+# --- 4. system launch daemon (3am daily, any account) ------------------
+echo "[4/7] Installing the daily 3am job (system-wide)..."
+mkdir -p "$(dirname "$LOG")"
+sudo tee "$PLIST" >/dev/null <<PLIST_EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
     <key>Label</key>
     <string>${LABEL}</string>
+    <key>UserName</key>
+    <string>${RUN_USER}</string>
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/caffeinate</string>
@@ -99,6 +108,8 @@ cat > "$PLIST" <<PLIST_EOF
     <dict>
         <key>PATH</key>
         <string>/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>${HOME}</string>
     </dict>
     <key>StartCalendarInterval</key>
     <dict>
@@ -114,14 +125,15 @@ cat > "$PLIST" <<PLIST_EOF
 </dict>
 </plist>
 PLIST_EOF
-
-launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
-launchctl bootstrap "gui/$(id -u)" "$PLIST"
-launchctl enable "gui/$(id -u)/$LABEL"
-echo "      Scheduled for ${RUN_HOUR}:$(printf '%02d' "$RUN_MIN") every day."
+sudo chown root:wheel "$PLIST"
+sudo chmod 644 "$PLIST"
+sudo launchctl bootout "system/$LABEL" 2>/dev/null || true
+sudo launchctl bootstrap system "$PLIST"
+sudo launchctl enable "system/$LABEL"
+echo "      Scheduled for ${RUN_HOUR}:$(printf '%02d' "$RUN_MIN") every day, runs as ${RUN_USER}."
 
 # --- 5. wake schedule --------------------------------------------------
-echo "[5/7] Telling the Mac to wake at ${WAKE_TIME} (needs your password)..."
+echo "[5/7] Telling the Mac to wake at ${WAKE_TIME}..."
 sudo pmset repeat wakeorpoweron MTWRFSU "$WAKE_TIME"
 
 # --- 6. desktop shortcut -----------------------------------------------
