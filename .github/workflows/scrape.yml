@@ -42,7 +42,7 @@ jobs:
 
   retry1:
     needs: scrape
-    if: failure()
+    if: needs.scrape.result == 'failure'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -73,7 +73,7 @@ jobs:
 
   retry2:
     needs: retry1
-    if: failure()
+    if: needs.retry1.result == 'failure'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -102,7 +102,7 @@ jobs:
 
   retry3:
     needs: retry2
-    if: failure()
+    if: needs.retry2.result == 'failure'
     runs-on: ubuntu-latest
     permissions:
       contents: write
