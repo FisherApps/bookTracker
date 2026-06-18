@@ -59,9 +59,11 @@ of waiting for 3am:
 bash ~/BookTracker/local/test_now.sh
 ```
 
-This reschedules the real job to fire in ~3 minutes (on one book), sets a one-off
-wake, and sleeps the Mac. Watch it wake itself and run; the dashboard updates
-about a minute later. Then **put the normal schedule back**:
+This reschedules the real job to fire in ~3 minutes as a **full run** (every
+book, identical to 3am), sets a one-off wake, and sleeps the Mac. Watch it wake
+itself within ~2 minutes (that proves the wake + the job firing); the full
+scrape then runs and pushes when it finishes. Then **put the normal schedule
+back**:
 
 ```sh
 bash ~/BookTracker/local/test_now.sh restore

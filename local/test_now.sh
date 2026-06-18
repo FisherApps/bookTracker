@@ -2,14 +2,15 @@
 # Prove the WHOLE scheduled path works without waiting until 3am:
 # the Mac waking itself + the system job firing + scrape + push.
 #
-#   bash ~/BookTracker/local/test_now.sh           # arm a real run ~3 min out, then sleep
+#   bash ~/BookTracker/local/test_now.sh           # arm a real FULL run ~3 min out, then sleep
 #   bash ~/BookTracker/local/test_now.sh 5         # ...same, but 5 min out
 #   bash ~/BookTracker/local/test_now.sh restore   # put the normal 3am schedule back
 #
-# "arm" reschedules the real job to fire in a few minutes on ONE book, sets a
-# one-off wake a minute before, and puts the Mac to sleep. You then watch the
-# Mac wake itself and run; the dashboard should update ~1 min later. When it
-# works, run "restore" to return to the normal 3:00am daily schedule.
+# "arm" reschedules the real job to fire in a few minutes as a FULL run (every
+# book — identical to 3am), sets a one-off wake a minute before, and puts the
+# Mac to sleep. You watch the Mac wake itself within ~2 min (that proves wake +
+# the job firing); the full scrape then runs and pushes when it finishes (can
+# take a while). When it works, run "restore" to return to the normal schedule.
 
 set -euo pipefail
 
@@ -87,24 +88,23 @@ if ! [[ "$LEAD" =~ ^[0-9]+$ ]] || [ "$LEAD" -lt 2 ]; then
   exit 1
 fi
 
-cd "$INSTALL_DIR"
-SAMPLE_ASIN="$(.venv/bin/python -c "import json;b=[x for x in json.load(open('books.json')) if x.get('active',True)];print(b[0]['asin'] if b else '')")"
 RUN_HOUR=$((10#$(date -v+"${LEAD}"M +%H)))
 RUN_MIN=$((10#$(date -v+"${LEAD}"M +%M)))
 WAKE_AT="$(date -v+"$((LEAD-1))"M '+%m/%d/%y %H:%M:%S')"
 
-echo "Arming a real one-book run at $(date -v+"${LEAD}"M '+%-I:%M %p')..."
+echo "Arming a real FULL run at $(date -v+"${LEAD}"M '+%-I:%M %p')..."
 sudo -v
-write_plist "$RUN_HOUR" "$RUN_MIN" "--asin" "$SAMPLE_ASIN" "--no-retry"
+write_plist "$RUN_HOUR" "$RUN_MIN"
 sudo pmset schedule wake "$WAKE_AT"
 
 echo ""
 echo "============================================"
 echo " The Mac will SLEEP now and WAKE ITSELF in about $((LEAD-1)) min, then run."
-echo " Watch for: the screen wakes on its own, fans/activity, then ~1 min later"
-echo " the dashboard shows a fresh time:"
+echo " Watch for: the screen wakes on its own + activity — that proves the wake"
+echo " and the job firing. The FULL scrape then runs (can take a while, it pauses"
+echo " between books) and pushes at the end. Confirm with the log or dashboard:"
+echo "   tail -f \"$LOG\""
 echo "   https://fisherapps.github.io/bookTracker/dashboard.html"
-echo " (You can also watch the log:  tail -f \"$LOG\" )"
 echo ""
 echo " >>> ONCE YOU'VE CONFIRMED IT WORKED, restore the normal schedule:"
 echo "       bash ~/BookTracker/local/test_now.sh restore"
