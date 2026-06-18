@@ -25,8 +25,10 @@ echo "=== BookTracker local run: $(date) ==="
 # Pull first so our commit builds on top of any cloud/other commits.
 git pull --rebase --autostash || echo "WARNING: git pull failed, continuing anyway."
 
-# Scrape, then regenerate the dashboard.
-"$PY" -m src.scrape
+# Scrape, then regenerate the dashboard. Any args passed to this script are
+# forwarded to the scraper, so you can do a fast end-to-end test with e.g.
+#   bash scrape_local.sh --asin B0XXXX --no-retry
+"$PY" -m src.scrape "$@"
 "$PY" -m src.dashboard
 
 # Commit and push whatever we collected.
