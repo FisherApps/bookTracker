@@ -31,10 +31,10 @@ It will:
 - install everything (no manual Python install — `uv` handles it),
 - ask you to **paste the token** (hidden input),
 - ask for an **admin password once** (to install the system job + 2:55am wake),
-- install the 3am job, add an **"Update Books"** shortcut to the Desktop, and run
-  a quick test.
+- install the 3am job, then verify the whole flow with one real scrape + push.
 
-That's it. ~2 minutes, then you can leave.
+That's it. ~2 minutes, then you can leave. **It leaves nothing visible on the
+Mac** — no icons, no windows. Your dad never has to do anything.
 
 The job is installed **system-wide**, so it runs at 3am no matter which account
 (Dad's or Mom's) is logged in — or if nobody is. Run setup once, from whichever
@@ -42,11 +42,12 @@ account you like.
 
 ## Daily use (for Dad)
 
-- Nothing to do — it updates itself overnight.
-- To force an update now: double-click **"Update Books"** on the Desktop and wait
-  for it to finish (it can take a while — it pauses between books on purpose).
+- Nothing to do — it updates itself overnight, silently.
 - To view the books: the usual dashboard at
   <https://fisherapps.github.io/bookTracker/dashboard.html>.
+
+If you ever need to force a run yourself, from Terminal:
+`bash ~/BookTracker/local/scrape_local.sh`
 
 ## Troubleshooting (for you)
 

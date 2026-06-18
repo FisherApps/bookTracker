@@ -4,14 +4,14 @@
 # Run it with a single command in Terminal (see local/README.md):
 #   curl -fsSL https://raw.githubusercontent.com/FisherApps/bookTracker/main/local/setup.sh -o /tmp/bt-setup.sh && bash /tmp/bt-setup.sh
 #
-# It is safe to re-run. It will:
+# It is safe to re-run. It leaves NOTHING visible on the Mac for the user —
+# no icons, no windows. It will:
 #   1. Install uv (manages its own Python + virtualenv — no system Python needed)
 #   2. Clone the repo to ~/BookTracker and install dependencies
 #   3. Store a GitHub token so the 3am job can push results unattended
-#   4. Install a launch agent that scrapes every day at 3:00am
+#   4. Install a system job that scrapes every day at 3:00am (any account)
 #   5. Tell the Mac to wake itself at 2:55am so the job can run
-#   6. Put an "Update Books" shortcut on the Desktop for manual runs
-#   7. Do a quick test to confirm scraping and pushing both work
+#   6. Verify the whole flow with a real one-book scrape + push
 
 set -euo pipefail
 
@@ -31,19 +31,19 @@ echo "============================================"
 
 # --- 1. uv --------------------------------------------------------------
 if ! command -v uv >/dev/null 2>&1; then
-  echo "[1/7] Installing uv..."
+  echo "[1/6] Installing uv..."
   curl -LsSf https://astral.sh/uv/install.sh | sh
 else
-  echo "[1/7] uv already installed."
+  echo "[1/6] uv already installed."
 fi
 export PATH="$HOME/.local/bin:$PATH"
 
 # --- 2. clone + dependencies -------------------------------------------
 if [ -d "$INSTALL_DIR/.git" ]; then
-  echo "[2/7] Repo already present, updating..."
+  echo "[2/6] Repo already present, updating..."
   git -C "$INSTALL_DIR" pull --rebase --autostash || true
 else
-  echo "[2/7] Cloning repo to $INSTALL_DIR..."
+  echo "[2/6] Cloning repo to $INSTALL_DIR..."
   git clone "$REPO_URL" "$INSTALL_DIR"
 fi
 cd "$INSTALL_DIR"
@@ -53,7 +53,7 @@ uv pip install -r requirements.txt
 chmod +x "$INSTALL_DIR/local/scrape_local.sh"
 
 # --- 3. git identity + push token --------------------------------------
-echo "[3/7] Configuring git push..."
+echo "[3/6] Configuring git push..."
 git config user.name "BookTracker (Mac mini)"
 git config user.email "brianpfisher98@gmail.com"
 
@@ -86,7 +86,7 @@ echo "account, even when nobody is logged in). You won't be asked again."
 sudo -v
 
 # --- 4. system launch daemon (3am daily, any account) ------------------
-echo "[4/7] Installing the daily 3am job (system-wide)..."
+echo "[4/6] Installing the daily 3am job (system-wide)..."
 mkdir -p "$(dirname "$LOG")"
 sudo tee "$PLIST" >/dev/null <<PLIST_EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -133,50 +133,28 @@ sudo launchctl enable "system/$LABEL"
 echo "      Scheduled for ${RUN_HOUR}:$(printf '%02d' "$RUN_MIN") every day, runs as ${RUN_USER}."
 
 # --- 5. wake schedule --------------------------------------------------
-echo "[5/7] Telling the Mac to wake at ${WAKE_TIME}..."
+echo "[5/6] Telling the Mac to wake at ${WAKE_TIME}..."
 sudo pmset repeat wakeorpoweron MTWRFSU "$WAKE_TIME"
 
-# --- 6. desktop shortcuts ----------------------------------------------
-echo "[6/7] Creating Desktop shortcuts..."
+# --- 6. verify the whole flow with a real one-book scrape + push -------
+# Runs the exact same script the 3am job runs, but on a single book so it
+# finishes in ~1 minute. This proves scrape + commit + push all work, and
+# leaves nothing behind on the Mac.
+echo "[6/6] Verifying end to end (real scrape + push, one book)..."
 SAMPLE_ASIN="$("$INSTALL_DIR/.venv/bin/python" - <<'PY'
 import json
 books = [b for b in json.load(open("books.json")) if b.get("active", True)]
 print(books[0]["asin"] if books else "")
 PY
 )"
-
-# Daily manual full run (for Dad).
-cat > "$HOME/Desktop/Update Books.command" <<CMD_EOF
-#!/bin/bash
-caffeinate -i /bin/bash "$INSTALL_DIR/local/scrape_local.sh"
-echo ""
-echo "Finished. You can close this window."
-read -n 1 -s -r -p "Press any key to close..."
-CMD_EOF
-chmod +x "$HOME/Desktop/Update Books.command"
-
-# Setup-day verification: real run on ONE book (~1 min). Delete after testing.
-cat > "$HOME/Desktop/Test Run.command" <<CMD_EOF
-#!/bin/bash
-caffeinate -i /bin/bash "$INSTALL_DIR/local/scrape_local.sh" --asin "$SAMPLE_ASIN" --no-retry
-echo ""
-echo "Done. Now check: https://fisherapps.github.io/bookTracker/dashboard.html"
-read -n 1 -s -r -p "Press any key to close..."
-CMD_EOF
-chmod +x "$HOME/Desktop/Test Run.command"
-
-# --- 7. quick connectivity check ---------------------------------------
-echo "[7/7] Quick connectivity check (one book, nothing written)..."
 if [ -n "$SAMPLE_ASIN" ]; then
-  "$INSTALL_DIR/.venv/bin/python" -m src.scrape --asin "$SAMPLE_ASIN" --dry-run --no-retry \
-    && echo "      OK — Amazon reachable from this IP." \
-    || echo "      WARNING: check failed — see output above."
+  bash "$INSTALL_DIR/local/scrape_local.sh" --asin "$SAMPLE_ASIN" --no-retry
 fi
 
 echo ""
 echo "============================================"
-echo " Done. You can walk away."
-echo "  - Runs automatically every day at 3:00am."
-echo "  - Manual run: double-click 'Update Books' on the Desktop."
-echo "  - Logs: $LOG"
+echo " Done. Nothing is visible to the user — it just runs at 3:00am daily."
+echo " Confirm the verification worked:"
+echo "   https://fisherapps.github.io/bookTracker/dashboard.html"
+echo " Logs (for you): $LOG"
 echo "============================================"
