@@ -49,6 +49,26 @@ account you like.
 If you ever need to force a run yourself, from Terminal:
 `bash ~/BookTracker/local/scrape_local.sh`
 
+## Verify the wake + schedule on setup day (optional but recommended)
+
+Setup proves scraping and pushing work, but **not** that the Mac wakes itself
+and the 3am job fires. To prove the whole scheduled path in ~3 minutes instead
+of waiting for 3am:
+
+```sh
+bash ~/BookTracker/local/test_now.sh
+```
+
+This reschedules the real job to fire in ~3 minutes (on one book), sets a one-off
+wake, and sleeps the Mac. Watch it wake itself and run; the dashboard updates
+about a minute later. Then **put the normal schedule back**:
+
+```sh
+bash ~/BookTracker/local/test_now.sh restore
+```
+
+(Use `test_now.sh 5` for a 5-minute lead instead of 3.)
+
 ## Troubleshooting (for you)
 
 - **Logs:** `~/Library/Logs/booktracker.log` (under the account setup ran from)
