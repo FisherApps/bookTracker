@@ -136,31 +136,41 @@ echo "      Scheduled for ${RUN_HOUR}:$(printf '%02d' "$RUN_MIN") every day, run
 echo "[5/7] Telling the Mac to wake at ${WAKE_TIME}..."
 sudo pmset repeat wakeorpoweron MTWRFSU "$WAKE_TIME"
 
-# --- 6. desktop shortcut -----------------------------------------------
-echo "[6/7] Creating the 'Update Books' Desktop shortcut..."
-CMD="$HOME/Desktop/Update Books.command"
-cat > "$CMD" <<CMD_EOF
-#!/bin/bash
-# Double-click to run a BSR scrape on this Mac right now.
-caffeinate -i /bin/bash "$INSTALL_DIR/local/scrape_local.sh"
-echo ""
-echo "Finished. You can close this window."
-read -n 1 -s -r -p "Press any key to close..."
-CMD_EOF
-chmod +x "$CMD"
-
-# --- 7. quick test -----------------------------------------------------
-echo "[7/7] Quick test (one book, no data written)..."
+# --- 6. desktop shortcuts ----------------------------------------------
+echo "[6/7] Creating Desktop shortcuts..."
 SAMPLE_ASIN="$("$INSTALL_DIR/.venv/bin/python" - <<'PY'
 import json
 books = [b for b in json.load(open("books.json")) if b.get("active", True)]
 print(books[0]["asin"] if books else "")
 PY
 )"
+
+# Daily manual full run (for Dad).
+cat > "$HOME/Desktop/Update Books.command" <<CMD_EOF
+#!/bin/bash
+caffeinate -i /bin/bash "$INSTALL_DIR/local/scrape_local.sh"
+echo ""
+echo "Finished. You can close this window."
+read -n 1 -s -r -p "Press any key to close..."
+CMD_EOF
+chmod +x "$HOME/Desktop/Update Books.command"
+
+# Setup-day verification: real run on ONE book (~1 min). Delete after testing.
+cat > "$HOME/Desktop/Test Run.command" <<CMD_EOF
+#!/bin/bash
+caffeinate -i /bin/bash "$INSTALL_DIR/local/scrape_local.sh" --asin "$SAMPLE_ASIN" --no-retry
+echo ""
+echo "Done. Now check: https://fisherapps.github.io/bookTracker/dashboard.html"
+read -n 1 -s -r -p "Press any key to close..."
+CMD_EOF
+chmod +x "$HOME/Desktop/Test Run.command"
+
+# --- 7. quick connectivity check ---------------------------------------
+echo "[7/7] Quick connectivity check (one book, nothing written)..."
 if [ -n "$SAMPLE_ASIN" ]; then
   "$INSTALL_DIR/.venv/bin/python" -m src.scrape --asin "$SAMPLE_ASIN" --dry-run --no-retry \
-    && echo "      Scrape test OK (Amazon reachable from this IP)." \
-    || echo "      WARNING: scrape test failed — check the output above."
+    && echo "      OK — Amazon reachable from this IP." \
+    || echo "      WARNING: check failed — see output above."
 fi
 
 echo ""
