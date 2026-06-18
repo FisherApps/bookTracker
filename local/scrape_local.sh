@@ -38,7 +38,9 @@ if git diff --cached --quiet; then
 else
   git commit -m "Daily BSR update $(date -u +%Y-%m-%d) (local)"
   git pull --rebase --autostash || echo "WARNING: pull before push failed."
-  if git push; then
+  # credential.helper= forces git to use only the token in the remote URL,
+  # never the keychain (which a headless job can't reach).
+  if git -c credential.helper= push; then
     echo "Pushed successfully."
   else
     echo "ERROR: git push failed (check the token / network)."

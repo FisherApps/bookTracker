@@ -53,13 +53,17 @@ uv pip install -r requirements.txt
 chmod +x "$INSTALL_DIR/local/scrape_local.sh"
 
 # --- 3. git identity + push token --------------------------------------
+# The 3am job runs headless (no login session), so it CANNOT use the macOS
+# keychain — the token must be embedded in the remote URL. We always embed it
+# (even if interactive push already works from the keychain) and then verify
+# with the credential helper disabled, which mimics the daemon exactly.
 echo "[3/6] Configuring git push..."
 git config user.name "BookTracker (Mac mini)"
 git config user.email "brianpfisher98@gmail.com"
 
-# Only ask for a token if push isn't already working.
-if git push --dry-run origin HEAD >/dev/null 2>&1; then
-  echo "      Push already works — keeping existing credentials."
+# Reuse an already-embedded token on re-runs; otherwise ask for one.
+if git remote get-url origin | grep -q '@github.com'; then
+  echo "      Token already embedded from a previous run."
 else
   echo ""
   echo "      Paste a GitHub token with Contents read/write on FisherApps/bookTracker."
@@ -70,13 +74,16 @@ else
     echo "      ERROR: no token entered. Re-run setup when you have one."
     exit 1
   fi
-  git remote set-url origin "https://${TOKEN}@github.com/FisherApps/bookTracker.git"
-  if git push --dry-run origin HEAD >/dev/null 2>&1; then
-    echo "      Token works."
-  else
-    echo "      ERROR: push still failing with that token. Check its scope/expiry."
-    exit 1
-  fi
+  git remote set-url origin "https://x-access-token:${TOKEN}@github.com/FisherApps/bookTracker.git"
+fi
+
+# Verify with NO credential helper — exactly how the headless 3am job pushes.
+if git -c credential.helper= push --dry-run origin HEAD >/dev/null 2>&1; then
+  echo "      Push verified — works headlessly, like the 3am job will."
+else
+  echo "      ERROR: headless push failed. Check the token's scope/expiry,"
+  echo "             then re-run setup."
+  exit 1
 fi
 
 # --- 4 & 5 need admin rights; ask for the password once, up front. -----
