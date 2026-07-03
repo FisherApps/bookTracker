@@ -511,6 +511,25 @@ header .left .meta {{
 .badge-hardcover {{ background: #eaf2fb; color: var(--hardcover); }}
 .badge-paperback {{ background: #f3f1ee; color: var(--paperback); }}
 
+/* Top-25 "hot" indicator */
+.hot-dot {{
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #e53935;
+    margin-left: 8px;
+    vertical-align: middle;
+    box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.6);
+    animation: hotPulse 1.2s infinite;
+}}
+
+@keyframes hotPulse {{
+    0%   {{ box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.6); opacity: 1; }}
+    70%  {{ box-shadow: 0 0 0 6px rgba(229, 57, 53, 0); opacity: 0.5; }}
+    100% {{ box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); opacity: 1; }}
+}}
+
 .book-row .rank-display {{
     font-family: var(--font-display);
     font-size: 1.15rem;
@@ -920,6 +939,15 @@ function getCleanTitle(name) {{
     return name.replace(/\\s*-\\s*(Kindle|Hardcover|Paperback)$/, '');
 }}
 
+// True if any category ranking on the latest scrape is in the top 25
+function isHot(asin) {{
+    const book = DATA.books[asin];
+    return Object.values(book.subcategories).some(cat => {{
+        const r = cat.data[latestDate];
+        return r !== undefined && r <= 25;
+    }});
+}}
+
 // --- Time filtering ---
 let timeRangeDays = 0; // 0 = all
 
@@ -1152,7 +1180,7 @@ function renderBookList() {{
         row.innerHTML = `
             <div class="position ${{position <= 3 ? 'top3' : ''}}">${{position}}</div>
             <div class="info">
-                <div class="title">${{getCleanTitle(book.name)}}${{getFormatBadge(book.name)}}</div>
+                <div class="title">${{getCleanTitle(book.name)}}${{getFormatBadge(book.name)}}${{isHot(asin) ? '<span class="hot-dot" title="Top 25 in a category on the latest scrape"></span>' : ''}}</div>
             </div>
             <div class="rank-display">${{rankStr}}</div>
             <div class="expand-icon"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg></div>
