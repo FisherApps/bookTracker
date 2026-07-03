@@ -79,7 +79,7 @@ jobs:
 
   retry1:
     needs: scrape
-    if: needs.scrape.result == 'failure'
+    if: ${{ always() && needs.scrape.result == 'failure' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -110,7 +110,7 @@ jobs:
 
   retry2:
     needs: retry1
-    if: needs.retry1.result == 'failure'
+    if: ${{ always() && needs.retry1.result == 'failure' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -139,7 +139,7 @@ jobs:
 
   retry3:
     needs: retry2
-    if: needs.retry2.result == 'failure'
+    if: ${{ always() && needs.retry2.result == 'failure' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
