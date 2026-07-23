@@ -539,11 +539,17 @@ header .left .meta {{
 }}
 
 /* Top subcategory column */
+.top-cat-header {{
+    text-align: right;
+}}
+
 .book-row .top-cat {{
     min-width: 0;
     display: flex;
     flex-direction: column;
+    align-items: flex-end;
     gap: 1px;
+    text-align: right;
 }}
 
 .book-row .top-cat-name {{
