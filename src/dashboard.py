@@ -437,7 +437,7 @@ header .left .meta {{
 
 .book-list-header {{
     display: grid;
-    grid-template-columns: 36px 1fr auto 28px;
+    grid-template-columns: 36px 1fr auto minmax(100px, 150px) 28px;
     gap: 14px;
     padding: 10px 24px;
     border-bottom: 2px solid var(--border);
@@ -450,7 +450,7 @@ header .left .meta {{
 
 .book-row {{
     display: grid;
-    grid-template-columns: 36px 1fr auto 28px;
+    grid-template-columns: 36px 1fr auto minmax(100px, 150px) 28px;
     gap: 14px;
     align-items: center;
     padding: 14px 24px;
@@ -536,6 +536,38 @@ header .left .meta {{
     font-weight: 600;
     color: var(--text);
     white-space: nowrap;
+}}
+
+/* Top subcategory column */
+.book-row .top-cat {{
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}}
+
+.book-row .top-cat-name {{
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.25;
+    /* Prefer wrapping the category name (up to 2 lines) rather than the title */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+}}
+
+.book-row .top-cat-rank {{
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--accent);
+}}
+
+.book-row .top-cat-empty {{
+    color: var(--text-muted);
+    font-size: 0.9rem;
 }}
 
 .book-row .expand-icon {{
@@ -810,7 +842,9 @@ header .left .meta {{
     header {{ flex-direction: column; align-items: flex-start; gap: 16px; }}
     header .left h1 {{ font-size: 1.8rem; }}
     .stats {{ grid-template-columns: 1fr; }}
+    .book-list-header {{ grid-template-columns: 28px 1fr auto 20px; }}
     .book-row {{ grid-template-columns: 28px 1fr auto 20px; padding: 12px 16px; }}
+    .top-cat, .top-cat-header {{ display: none; }}
     .controls-row {{ flex-direction: column; align-items: flex-start; gap: 12px; }}
 }}
 </style>
@@ -900,6 +934,7 @@ header .left .meta {{
         <div>#</div>
         <div>Title</div>
         <div id="rankHeader">Overall Rank</div>
+        <div class="top-cat-header">Top Category</div>
         <div></div>
     </div>
     <div id="bookList"></div>
@@ -946,6 +981,21 @@ function isHot(asin) {{
         const r = cat.data[latestDate];
         return r !== undefined && r <= 25;
     }});
+}}
+
+// The subcategory where the book ranks best (lowest rank) on the latest scrape
+function getTopSubcategory(asin) {{
+    const book = DATA.books[asin];
+    let bestRank = null;
+    let bestName = '';
+    Object.values(book.subcategories).forEach(cat => {{
+        const r = cat.data[latestDate];
+        if (r !== undefined && (bestRank === null || r < bestRank)) {{
+            bestRank = r;
+            bestName = cat.name;
+        }}
+    }});
+    return bestRank === null ? null : {{ name: bestName, rank: bestRank }};
 }}
 
 // --- Time filtering ---
@@ -1175,6 +1225,11 @@ function renderBookList() {{
         const rankStr = rank ? '#' + rank.toLocaleString() : '—';
         const isSelected = asin === selectedAsin;
 
+        const topCat = getTopSubcategory(asin);
+        const topCatHtml = topCat
+            ? `<div class="top-cat" title="${{topCat.name}}"><span class="top-cat-name">${{topCat.name}}</span><span class="top-cat-rank">#${{topCat.rank.toLocaleString()}}</span></div>`
+            : '<div class="top-cat top-cat-empty">—</div>';
+
         const row = document.createElement('div');
         row.className = 'book-row' + (isSelected ? ' selected' : '');
         row.innerHTML = `
@@ -1183,6 +1238,7 @@ function renderBookList() {{
                 <div class="title">${{getCleanTitle(book.name)}}${{getFormatBadge(book.name)}}${{isHot(asin) ? '<span class="hot-dot" title="Top 25 in a category on the latest scrape"></span>' : ''}}</div>
             </div>
             <div class="rank-display">${{rankStr}}</div>
+            ${{topCatHtml}}
             <div class="expand-icon"><svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg></div>
         `;
         row.addEventListener('click', () => toggleBook(asin));
