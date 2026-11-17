@@ -80,6 +80,7 @@ def process_book(
     now: datetime,
     dry_run: bool,
     discovered: set[str],
+    capture_date: str | None = None,
 ) -> tuple[bool, str]:
     """Fetch, parse, and store data for one book.
 
@@ -118,7 +119,9 @@ def process_book(
         return False, "parse_error"
 
     # Insert snapshots
-    capture_date = now.strftime("%Y-%m-%d")
+    # capture_date is fixed per run so a run that crosses UTC midnight doesn't
+    # split one day's snapshot across two dates.
+    capture_date = capture_date or now.strftime("%Y-%m-%d")
     captured_at = now.isoformat(timespec="seconds")
     for rank_entry in parsed.ranks:
         if not dry_run:
@@ -157,6 +160,7 @@ def run_pass(
     dry_run: bool,
     discovered: set[str],
     captcha_breaker: int = CAPTCHA_CIRCUIT_BREAKER,
+    capture_date: str | None = None,
 ) -> list[dict]:
     """Run one pass over books. Returns list of books that failed.
 
@@ -168,7 +172,9 @@ def run_pass(
     consecutive_captchas = 0
     for i, book in enumerate(books):
         now = datetime.now(timezone.utc)
-        success, status = process_book(book, session, conn, now, dry_run, discovered)
+        success, status = process_book(
+            book, session, conn, now, dry_run, discovered, capture_date
+        )
         if not success:
             failed.append(book)
         if status == "captcha":
@@ -212,17 +218,22 @@ def main() -> None:
     session = requests.Session()
     discovered = load_discovered_asins()
 
+    run_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     tripped = False
     try:
         # First pass
-        failed = run_pass(books, session, conn, args.dry_run, discovered)
+        failed = run_pass(
+            books, session, conn, args.dry_run, discovered, capture_date=run_date
+        )
 
         # Retry pass
         if failed and not args.no_retry and not args.dry_run:
             logging.info("Retry pass: %d books failed, waiting 15 minutes...", len(failed))
             time.sleep(15 * 60)
             random.shuffle(failed)
-            failed = run_pass(failed, session, conn, args.dry_run, discovered)
+            failed = run_pass(
+                failed, session, conn, args.dry_run, discovered, capture_date=run_date
+            )
     except CaptchaCircuitBreakerError as e:
         logging.error("CIRCUIT BREAKER TRIPPED — %s. Aborting run.", e)
         tripped = True
